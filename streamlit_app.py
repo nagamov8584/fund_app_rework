@@ -3,7 +3,7 @@ import pandas as pd
 from streamlit_gsheets import GSheetsConnection
 from streamlit_pdf_viewer import pdf_viewer
 from streamlit_extras.add_vertical_space import add_vertical_space
-from PyPDF2 import PdfReader
+#from PyPDF2 import PdfReader
 import time
 import os
 import re
