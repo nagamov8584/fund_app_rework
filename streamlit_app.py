@@ -181,7 +181,7 @@ def txt_prep():
     txt_files = []
 
     for iter_account, iter_statement in zip(accounts, statements):
-    iter_file = ''
+        iter_file = ''
 
     iter_file = header + date  + iter_account + iter_statement + ending
     txt_files.append(iter_file)
@@ -192,7 +192,7 @@ def txt_prep():
             section_file.writelines(file)
 
 
-            
+
 #####################################
 
 
