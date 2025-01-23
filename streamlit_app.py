@@ -17,6 +17,9 @@ st.set_page_config(
 
 def extract(lst):
     return [item[0] for item in lst]
+def find_account(input_string):
+    res = re.search(r'\d{20}', input_string)
+    return res[0]
 def data_prep_load():
     conn = st.connection("gsheets", type=GSheetsConnection)
     url = "https://docs.google.com/spreadsheets/d/1ftUQL2RRga6sXe7gqjv19FmUDinwtkR-o_UNmFBFMXs/edit"
@@ -126,7 +129,7 @@ def look_at_fund_accounts (db):
     option = st.radio("Choose AMC of interest", options=["None", "S+", "WIM"], index=0)
 
     if option == "S+":
-        st.dataframe(db[db['class'] == 'S'])
+        st.dataframe(db[db['class'] in ['S', 'S, AFI']])
     elif option == "WIM":
         st.dataframe(db[db['class'] == 'W'])
     else:
@@ -146,6 +149,53 @@ def download_zip(upload, db):
         else:
             st.warning("Please upload some PDF files first.")
         
+def txt_prep():
+    with open("исходный_файл.txt", "r") as original_file:
+        content = original_file.readlines()
+
+    # Разделение содержимого файла
+
+
+    containers = []
+    container = []
+
+    for line in content:
+        if "Получатель=" in line:
+            container.append(line)
+            containers.append(container)
+            container = []
+        elif "СекцияРасчСчет" in line:
+            containers.append(container)
+            container = []
+            container.append(line)
+        else:
+            container.append(line)
+    containers.append(container)
+
+    header = containers[0]
+    date = containers[1][:2]
+    accounts = [[x] for x in containers[1][2:]]
+    statements = containers[2:]
+    ending = ['КонецФайла']
+
+    txt_files = []
+
+    for iter_account, iter_statement in zip(accounts, statements):
+    iter_file = ''
+
+    iter_file = header + date  + iter_account + iter_statement + ending
+    txt_files.append(iter_file)
+
+    for file, iter_account in zip(txt_files, accounts):
+        file_name = find_account(iter_account[0])+".txt"
+        with open(file_name, "w") as section_file:
+            section_file.writelines(file)
+
+
+            
+#####################################
+
+
 
 data = data_prep_load()
 env_initiation()
