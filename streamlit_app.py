@@ -36,6 +36,8 @@ def env_initiation():
         st.session_state.recognized_files = []
     if 'nonrecognized_files' not in st.session_state:
         st.session_state.nonrecognized_files = []
+    if 'files_for_zip' not in st.session_state:
+        st.session_state.files_for_zip = {}
 def file_segregation(data):
     # Function separates uploaded data into 3 structures:
 
@@ -61,10 +63,13 @@ def file_segregation(data):
             # Second check: if in Spreadsheet DB
                 if account_detected in data.account.tolist():
                     file.name = account_detected
+
                     if file_name not in extract(st.session_state.recognized_files):
                         st.session_state.recognized_files.append([file_name, account_detected, True])
                         st.session_state.uploaded_files.append(([file_name, account_detected, True]))
-                
+
+                        st.session_state.files_for_zip[account_detected] = file
+
                 else:
                     if file_name not in extract(st.session_state.nonrecognized_files):
                         st.session_state.nonrecognized_files.append([file_name, account_not_detected, False])
@@ -107,38 +112,38 @@ def preview():
         
     elif if_show_rename and len(upload) == 0:
         st.warning('No files uploaded')
-def create_zip(upload, db):
+def create_zip(files_to_zip, rename_db):
         zip_buffer = io.BytesIO()
         
         # Create a Zip file in memory
         with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
 
-            for pdf in upload:
+            for account in files_to_zip:
+                    recorded_file = files_to_zip[account]
 
-                try:    
-                    st.write(pdf.name)
-                    pdf_name = db[db['upl_filename'] == pdf.name]['file_name'].values[0] + '.pdf'
+                    #st.write(files_to_zip[account].name, ' ---> ', account, 'was added to zip')
+                    pdf_name = rename_db[rename_db['account'] == account]['file_name'].values[0] + '.pdf'
+                    st.write(account, ' ---> ', pdf_name, 'was added to zip')
 
-                    zip_file.writestr(pdf_name, pdf.getvalue())
-                except:
-                    st.markdown('''❌''' + pdf.name + ''' :red[was not added]''')
-        
+                    zip_file.writestr(pdf_name, recorded_file.getvalue())
+                    recorded_file = []
+             
         zip_buffer.seek(0)  # Rewind the buffer to the beginning
         return zip_buffer
 def look_at_fund_accounts (db):
     option = st.radio("Choose AMC of interest", options=["None", "S+", "WIM"], index=0)
 
     if option == "S+":
-        st.dataframe(db[db['class'] in ['S', 'S, AFI']])
+        st.dataframe(db[db['class'].isin(['S', 'S', 'AFI'])])
     elif option == "WIM":
         st.dataframe(db[db['class'] == 'W'])
     else:
         pass
     ###
-def download_zip(upload, db):
+def download_zip(files_to_zip, rename_db):
     if st.button('Download ZIP of PDFs'):
-        if upload:
-            zip_buffer = create_zip(upload, db)
+        if files_to_zip:
+            zip_buffer = create_zip(files_to_zip, rename_db)
             st.download_button(
                 label="Download ZIP",
                 data=zip_buffer,
@@ -148,66 +153,24 @@ def download_zip(upload, db):
             )
         else:
             st.warning("Please upload some PDF files first.")
-        
-def txt_prep():
-    with open("исходный_файл.txt", "r") as original_file:
-        content = original_file.readlines()
-
-    # Разделение содержимого файла
-
-
-    containers = []
-    container = []
-
-    for line in content:
-        if "Получатель=" in line:
-            container.append(line)
-            containers.append(container)
-            container = []
-        elif "СекцияРасчСчет" in line:
-            containers.append(container)
-            container = []
-            container.append(line)
-        else:
-            container.append(line)
-    containers.append(container)
-
-    header = containers[0]
-    date = containers[1][:2]
-    accounts = [[x] for x in containers[1][2:]]
-    statements = containers[2:]
-    ending = ['КонецФайла']
-
-    txt_files = []
-
-    for iter_account, iter_statement in zip(accounts, statements):
-        iter_file = ''
-
-    iter_file = header + date  + iter_account + iter_statement + ending
-    txt_files.append(iter_file)
-
-    for file, iter_account in zip(txt_files, accounts):
-        file_name = find_account(iter_account[0])+".txt"
-        with open(file_name, "w") as section_file:
-            section_file.writelines(file)
-
 
 
 #####################################
 
 
 
-data = data_prep_load()
+gspreadsheet = data_prep_load()
 env_initiation()
 
 upload = st.file_uploader(
     "Загружаем файлики", accept_multiple_files=True, type='pdf')
 
 #statements = []
-file_segregation(data=data)
+file_segregation(data=gspreadsheet)
 
-upload_db, rename_db = db_creation(data=st.session_state.recognized_files, db=data)
+upload_db, rename_db = db_creation(data=st.session_state.recognized_files, db=gspreadsheet)
 #
+st.dataframe(rename_db)
 add_vertical_space(6)
 #
 recongnition_status(upload, data=st.session_state.recognized_files)
@@ -215,5 +178,5 @@ preview()
 #
 add_vertical_space(6)
 #
-look_at_fund_accounts(data)
-download_zip(upload, rename_db)
+look_at_fund_accounts(gspreadsheet)
+download_zip(st.session_state.files_for_zip, rename_db)
