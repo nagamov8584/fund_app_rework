@@ -170,7 +170,7 @@ file_segregation(data=gspreadsheet)
 
 upload_db, rename_db = db_creation(data=st.session_state.recognized_files, db=gspreadsheet)
 #
-st.dataframe(rename_db)
+#st.dataframe(rename_db)
 add_vertical_space(6)
 #
 recongnition_status(upload, data=st.session_state.recognized_files)
